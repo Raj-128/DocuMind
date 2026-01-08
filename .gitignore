@@ -1,0 +1,13 @@
+# Security
+.env
+db.sqlite3
+
+# Python/Django junk
+__pycache__/
+*.py[cod]
+env/
+venv/
+.venv/
+faiss_index/
+media/
+staticfiles/

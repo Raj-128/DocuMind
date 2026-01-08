@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocuMind | Enterprise AI</title>
+    <style>
+        /* =========================================
+           1. BASE STYLES & ANIMATION
+           ========================================= */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0; 
+            height: 100vh; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            color: #2d3748; 
+            background: #0f172a; 
+            overflow: hidden; 
+            position: relative;
+        }
+
+        /* Floating Background Shapes */
+        .bg-shape { 
+            position: absolute; 
+            filter: blur(80px); 
+            z-index: -1; 
+            animation: float 10s infinite alternate ease-in-out; 
+        }
+        .shape-1 { width: 400px; height: 400px; background: #667eea; top: -50px; left: -50px; }
+        .shape-2 { width: 300px; height: 300px; background: #764ba2; bottom: 50px; right: -50px; animation-delay: -5s; }
+        .shape-3 { width: 200px; height: 200px; background: #ec4899; bottom: 40%; left: 40%; opacity: 0.4; animation-duration: 15s; }
+        
+        @keyframes float { 
+            0% { transform: translate(0, 0) scale(1); } 
+            100% { transform: translate(30px, 50px) scale(1.1); } 
+        }
+
+        /* =========================================
+           2. CONTAINER & CHAT UI
+           ========================================= */
+        .container {
+            background: rgba(255, 255, 255, 0.85); 
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px);
+            width: 850px; 
+            height: 90vh; 
+            border-radius: 24px; 
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            z-index: 10;
+        }
+
+        .header { 
+            background: rgba(255,255,255,0.9); 
+            padding: 20px; 
+            text-align: center; 
+            border-bottom: 1px solid rgba(0,0,0,0.05); 
+            flex-shrink: 0;
+        }
+        .header h1 { margin: 0; color: #1e293b; font-size: 1.8rem; font-weight: 800; letter-spacing: -1px; }
+        .header span { color: #667eea; }
+        
+        .chat-box {
+            flex: 1; 
+            padding: 30px; 
+            overflow-y: auto; 
+            background-color: #f8fafc;
+            background-image: radial-gradient(#e2e8f0 1px, transparent 1px); 
+            background-size: 20px 20px;
+            display: flex; 
+            flex-direction: column; 
+            gap: 15px; 
+            scroll-behavior: smooth;
+        }
+
+        .message {
+            max-width: 80%; 
+            padding: 16px 20px; 
+            border-radius: 18px; 
+            font-size: 1rem; 
+            position: relative;
+            line-height: 1.6; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
+            display: flex; 
+            flex-direction: column;
+            word-wrap: break-word;
+        }
+        
+        .message-content-wrapper { 
+            display: flex; 
+            align-items: flex-start; 
+            width: 100%;
+        }
+
+        .user-message { 
+            align-self: flex-end; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            border-bottom-right-radius: 4px; 
+        }
+        
+        .ai-message { 
+            align-self: flex-start; 
+            background: white; 
+            color: #334155; 
+            border-bottom-left-radius: 4px; 
+        }
+
+        .ai-arrow { 
+            color: #667eea; 
+            font-weight: bold; 
+            margin-right: 12px; 
+            font-size: 1.2rem; 
+            line-height: 1.6; 
+            flex-shrink: 0; 
+        }
+        
+        #typewriter-text { white-space: pre-wrap; }
+        .cursor::after { content: '▋'; color: #667eea; animation: blink 1s infinite; }
+        #typewriter-target { width: 100%; }
+
+        /* =========================================
+           3. CONTROLS
+           ========================================= */
+        .controls { 
+            padding: 25px; 
+            background: white; 
+            border-top: 1px solid #e2e8f0; 
+            flex-shrink: 0;
+        }
+        .btn-upload, .btn-summarize { 
+            padding: 12px 20px; 
+            border-radius: 12px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            border:none; 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            transition: 0.2s; 
+        }
+        .btn-upload { background: #e2e8f0; color: #475569; } 
+        .btn-upload:hover:not(:disabled) { background: #cbd5e1; }
+        .btn-upload:disabled { opacity: 0.7; cursor: not-allowed; }
+
+        .btn-summarize { 
+            background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%); 
+            color: white; 
+            box-shadow: 0 10px 15px -3px rgba(168, 85, 247, 0.4); 
+        }
+        .btn-summarize:hover { transform: translateY(-2px); }
+        
+        .btn-mic { 
+            width: 50px; 
+            height: 50px; 
+            border-radius: 50%; 
+            border: none; 
+            cursor: pointer; 
+            font-size: 1.5rem; 
+            background: #f1f5f9; 
+            color: #ef4444; 
+            transition: 0.2s; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            flex-shrink: 0;
+        }
+        .btn-mic.listening { background: #ef4444; color: white; animation: pulse 1.5s infinite; }
+        
+        .input-group { display: flex; gap: 15px; margin-top: 15px; align-items: center; }
+        input[type="text"] { 
+            flex: 1; 
+            padding: 16px; 
+            border: 2px solid #e2e8f0; 
+            border-radius: 14px; 
+            font-size: 1rem; 
+            outline: none; 
+            transition: 0.2s; 
+        }
+        input[type="text"]:focus { border-color: #667eea; box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1); }
+        
+        .btn-send { 
+            padding: 16px 30px; 
+            background: #1e293b; 
+            color: white; 
+            border: none; 
+            border-radius: 14px; 
+            font-weight: 700; 
+            cursor: pointer; 
+            transition: 0.2s; 
+        }
+        .btn-send:hover { background: #0f172a; transform: translateY(-2px); }
+
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; } 
+        ::-webkit-scrollbar-track { background: transparent; } 
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+    </style>
+</head>
+<body>
+    
+    <div class="bg-shape shape-1"></div>
+    <div class="bg-shape shape-2"></div>
+    <div class="bg-shape shape-3"></div>
+
+    <div class="container">
+        <div class="header">
+            <h1>🧠 Docu<span>Mind</span></h1>
+            <small>Enterprise Knowledge Base</small>
+        </div>
+
+        <div class="chat-box" id="chat-box">
+            {% for msg in chat_history %}
+                <div class="message {{ msg.role }}-message">
+                    {% if msg.role == 'ai' %}
+                        <div class="message-content-wrapper">
+                            <span class="ai-arrow">➔</span>
+                            
+                            {% if forloop.last and should_animate %}
+                                <div style="flex: 1;">
+                                    <div id="typewriter-target"></div>
+                                    <span class="cursor"></span>
+                                </div>
+
+                                <div id="source-html" style="display:none;">
+                                    {{ msg.content|linebreaks }}
+                                </div>
+                            {% else %}
+                                <div style="flex: 1;">{{ msg.content|linebreaks }}</div>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        {{ msg.content|linebreaks }}
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="controls">
+            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                <form method="post" enctype="multipart/form-data" id="upload-form">
+                    {% csrf_token %}
+                    <input type="file" name="pdf_files" id="pdf-input" accept=".pdf" style="display:none;">
+                    <button type="button" class="btn-upload" id="upload-btn" onclick="document.getElementById('pdf-input').click()">
+                        <span>📂</span> Upload PDF
+                    </button>
+                </form>
+
+                <form method="post" id="summarize-form">
+                    {% csrf_token %}
+                    <button type="submit" name="action_summarize" value="true" class="btn-summarize">
+                        <span>⚡</span> Summarize
+                    </button>
+                </form>
+            </div>
+
+            <form method="post" class="input-group" id="chat-form">
+                {% csrf_token %}
+                <button type="button" class="btn-mic" id="mic-btn" title="Click to Speak">🎙️</button>
+                <input type="text" name="user_question" id="user-input" placeholder="Type or speak..." required autocomplete="off">
+                <button type="submit" class="btn-send">Send</button>
+            </form>
+        </div>
+    </div>
+
+<script>
+    // ------------------------------------------------
+    // 1. VOICE RECOGNITION LOGIC
+    // ------------------------------------------------
+    const micBtn = document.getElementById('mic-btn');
+    const userInput = document.getElementById('user-input');
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false; 
+        recognition.lang = 'en-US';
+        
+        micBtn.onclick = function() { 
+            try { 
+                recognition.start(); 
+                micBtn.classList.add('listening'); 
+                userInput.placeholder = "Listening..."; 
+            } catch(e) { 
+                console.warn("Mic already active or error"); 
+            } 
+        };
+        
+        recognition.onresult = function(e) { 
+            userInput.value = e.results[0][0].transcript; 
+            micBtn.classList.remove('listening'); 
+            userInput.placeholder = "Type or speak..."; 
+        };
+        
+        recognition.onend = function() { 
+            micBtn.classList.remove('listening'); 
+            userInput.placeholder = "Type or speak...";
+        };
+    } else { 
+        if(micBtn) micBtn.style.display = 'none'; 
+    }
+</script>
+
+<script>
+    // ------------------------------------------------
+    // 2. TYPEWRITER LOGIC (Optimized)
+    // ------------------------------------------------
+    const shouldAnimate = "{{ should_animate|yesno:'true,false' }}" === "true";
+    const speed = 10; // Typing speed in ms
+
+    function scrollToBottom() {
+        const c = document.getElementById("chat-box");
+        if(c) {
+            requestAnimationFrame(() => {
+                c.scrollTop = c.scrollHeight;
+            });
+        }
+    }
+
+    const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    async function typeNode(sourceNode, targetParent) {
+        // CASE 1: Text Node
+        if (sourceNode.nodeType === Node.TEXT_NODE) {
+            const text = sourceNode.textContent;
+            if (text.length > 0) {
+                // Optimization: Append to one text node instead of creating many
+                const textNode = document.createTextNode("");
+                targetParent.appendChild(textNode);
+                
+                for (let i = 0; i < text.length; i++) {
+                    textNode.nodeValue += text[i];
+                    if (i % 10 === 0) scrollToBottom(); 
+                    await wait(speed);
+                }
+            }
+        } 
+        
+        // CASE 2: Element Node (Tags like <p>, <br>, <b>)
+        else if (sourceNode.nodeType === Node.ELEMENT_NODE) {
+            const newElement = document.createElement(sourceNode.tagName);
+            
+            // Copy attributes
+            Array.from(sourceNode.attributes).forEach(attr => {
+                newElement.setAttribute(attr.name, attr.value);
+            });
+
+            targetParent.appendChild(newElement);
+
+            // Recurse children
+            const children = Array.from(sourceNode.childNodes);
+            for (const child of children) {
+                await typeNode(child, newElement);
+            }
+        }
+    }
+
+    async function startTyping() {
+        const sourceDiv = document.getElementById("source-html");
+        const targetDiv = document.getElementById("typewriter-target");
+        const cursor = document.querySelector(".cursor");
+
+        if (sourceDiv && targetDiv) {
+            targetDiv.style.display = 'block'; 
+
+            const nodes = Array.from(sourceDiv.childNodes);
+            for (const node of nodes) {
+                await typeNode(node, targetDiv);
+            }
+            
+            if(cursor) cursor.style.display = 'none';
+            scrollToBottom();
+        }
+    }
+
+    // MAIN INIT
+    window.onload = function() {
+        if (shouldAnimate) {
+            startTyping();
+        } else {
+            scrollToBottom();
+        }
+    };
+</script>
+   
+<script>
+    // ------------------------------------------------
+    // 3. UPLOAD LOGIC
+    // ------------------------------------------------
+    const uploadInput = document.getElementById('pdf-input');
+    const uploadForm = document.getElementById('upload-form');
+    const uploadBtn = document.getElementById('upload-btn');
+
+    // Handle File Selection (Updates text & Submits)
+    uploadInput.onchange = function() {
+        if (this.files.length > 0) {
+            const fileName = this.files[0].name;
+            
+            // 1. Update button text/style
+            uploadBtn.innerHTML = `<span>⏳</span> Uploading...`;
+            uploadBtn.style.background = "#cbd5e1"; 
+            uploadBtn.disabled = true;
+            
+            // 2. Submit form
+            uploadForm.submit();
+        }
+    };
+</script>
+</body>
+</html>
