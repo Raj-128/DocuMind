@@ -35,10 +35,11 @@ def get_text_chunks(text):
 # ==========================================================
 # 3. VECTOR STORE
 # ==========================================================
-def get_vector_store(text_chunks):
+def get_vector_store(text_chunks, session_id):
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     vector_store = FAISS.from_texts(text_chunks, embedding=embeddings)
-    vector_store.save_local("faiss_index")
+    faiss_path = f"faiss_indexes/{session_id}"
+    vector_store.save_local(faiss_path)
 
 def get_chat_history_string():
     # Get last 5 messages from DB to maintain context
@@ -90,10 +91,16 @@ def ask_groq(context_text, user_question):
 # ==========================================================
 # 5. MAIN LOGIC (Extracts Sources)
 # ==========================================================
-def process_user_question(user_question):
+def process_user_question(user_question, session_id):
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     try:
-        new_db = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
+        faiss_path = f"faiss_indexes/{session_id}"
+
+        new_db = FAISS.load_local(
+            faiss_path,
+            embeddings,
+            allow_dangerous_deserialization=True
+    )
     except:
         return "⚠️ Please upload a PDF first."
     
@@ -121,10 +128,16 @@ def process_user_question(user_question):
 # ==========================================================
 # 6. GENERATE SUMMARY (Strictly Text Only)
 # ==========================================================
-def generate_summary():
+def generate_summary(session_id):
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     try:
-        new_db = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
+        faiss_path = f"faiss_indexes/{session_id}"
+
+        new_db = FAISS.load_local(
+            faiss_path,
+            embeddings,
+            allow_dangerous_deserialization=True
+        )
     except:
         return "⚠️ Please upload a PDF first."
     
