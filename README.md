@@ -1,12 +1,6 @@
 # 🧠 DocuMind – Enterprise AI Knowledge Assistant
 
 
-<p align="center">
-  An AI-powered document intelligence platform built with Django, LangChain, FAISS, HuggingFace Embeddings, and Groq LLM.
-</p>
-
----
-
 ## 🌐 Live Demo
 
 🔗 **Live Application:** (https://documind-zgo1.onrender.com/)
