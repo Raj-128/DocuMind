@@ -35,9 +35,11 @@ def get_text_chunks(text):
 # 3. VECTOR STORE
 # ==========================================================
 def get_vector_store(text_chunks, session_id):
-    from langchain_huggingface import HuggingFaceEmbeddings
-    
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    from langchain_huggingface import HuggingFaceEndpointEmbeddings
+    embeddings = HuggingFaceEndpointEmbeddings(
+        model="sentence-transformers/all-MiniLM-L6-v2",
+        huggingfacehub_api_token=os.getenv("HF_TOKEN")
+)
     vector_store = FAISS.from_texts(text_chunks, embedding=embeddings)
     faiss_path = f"faiss_indexes/{session_id}"
     vector_store.save_local(faiss_path)
@@ -93,8 +95,12 @@ def ask_groq(context_text, user_question):
 # 5. MAIN LOGIC (Extracts Sources)
 # ==========================================================
 def process_user_question(user_question, session_id):
-    from langchain_huggingface import HuggingFaceEmbeddings
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    
+    from langchain_huggingface import HuggingFaceEndpointEmbeddings
+    embeddings = HuggingFaceEndpointEmbeddings(
+        model="sentence-transformers/all-MiniLM-L6-v2",
+        huggingfacehub_api_token=os.getenv("HF_TOKEN")
+)
     try:
         faiss_path = f"faiss_indexes/{session_id}"
 
@@ -131,8 +137,12 @@ def process_user_question(user_question, session_id):
 # 6. GENERATE SUMMARY (Strictly Text Only)
 # ==========================================================
 def generate_summary(session_id):
-    from langchain_huggingface import HuggingFaceEmbeddings
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    from langchain_huggingface import HuggingFaceEndpointEmbeddings
+    
+    embeddings = HuggingFaceEndpointEmbeddings(
+        model="sentence-transformers/all-MiniLM-L6-v2",
+        huggingfacehub_api_token=os.getenv("HF_TOKEN")
+)
     try:
         faiss_path = f"faiss_indexes/{session_id}"
 
