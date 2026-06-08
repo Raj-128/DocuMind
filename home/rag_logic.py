@@ -3,7 +3,6 @@ import re
 from dotenv import load_dotenv
 from PyPDF2 import PdfReader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from groq import Groq
 from home.models import ChatMessage
@@ -36,6 +35,8 @@ def get_text_chunks(text):
 # 3. VECTOR STORE
 # ==========================================================
 def get_vector_store(text_chunks, session_id):
+    from langchain_huggingface import HuggingFaceEmbeddings
+    
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     vector_store = FAISS.from_texts(text_chunks, embedding=embeddings)
     faiss_path = f"faiss_indexes/{session_id}"
@@ -92,6 +93,7 @@ def ask_groq(context_text, user_question):
 # 5. MAIN LOGIC (Extracts Sources)
 # ==========================================================
 def process_user_question(user_question, session_id):
+    from langchain_huggingface import HuggingFaceEmbeddings
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     try:
         faiss_path = f"faiss_indexes/{session_id}"
@@ -129,6 +131,7 @@ def process_user_question(user_question, session_id):
 # 6. GENERATE SUMMARY (Strictly Text Only)
 # ==========================================================
 def generate_summary(session_id):
+    from langchain_huggingface import HuggingFaceEmbeddings
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     try:
         faiss_path = f"faiss_indexes/{session_id}"
