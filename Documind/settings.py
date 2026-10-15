@@ -31,6 +31,15 @@ if not SECRET_KEY:
 # Render sets RENDER=true on its servers, so debug is off there and on locally.
 DEBUG = not os.getenv('RENDER')
 
+# With DEBUG off, Django prints 500 tracebacks nowhere by default; send them to
+# stdout so they show up in Render's Logs tab.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "loggers": {"django": {"handlers": ["console"], "level": "ERROR"}},
+}
+
 ALLOWED_HOSTS = ["*"]
 
 
