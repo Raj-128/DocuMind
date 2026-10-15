@@ -16,8 +16,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path , include
+from django.http import HttpResponse
 
 urlpatterns = [
+    # Uptime-monitor ping target: keeps the Render free instance awake, no DB hit.
+    path('health/', lambda request: HttpResponse('ok')),
     path('admin/', admin.site.urls),
     path('', include('home.urls')),
 ]
