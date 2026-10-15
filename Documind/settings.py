@@ -28,7 +28,8 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 if not SECRET_KEY:
     raise ValueError("No SECRET_KEY set for Django application")
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Render sets RENDER=true on its servers, so debug is off there and on locally.
+DEBUG = not os.getenv('RENDER')
 
 ALLOWED_HOSTS = ["*"]
 
