@@ -11,3 +11,5 @@ venv/
 faiss_index/
 media/
 staticfiles/
+# Local notes with API keys - never commit
+Documind Keys.txt

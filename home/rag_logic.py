@@ -34,15 +34,56 @@ def get_text_chunks(text):
 # ==========================================================
 # 3. VECTOR STORE
 # ==========================================================
-def get_vector_store(text_chunks, session_id):
+# Embedding providers in priority order: if one fails (e.g. free credits used
+# up), the next is tried. An index can only be searched with the provider that
+# built it, so the provider's name is saved next to the index.
+def _google_embeddings():
+    from langchain_google_genai import GoogleGenerativeAIEmbeddings
+    return GoogleGenerativeAIEmbeddings(
+        model="models/gemini-embedding-001",
+        google_api_key=os.getenv("GOOGLE_API_KEY"),
+    )
+
+
+def _huggingface_embeddings():
     from langchain_huggingface import HuggingFaceEndpointEmbeddings
-    embeddings = HuggingFaceEndpointEmbeddings(
+    return HuggingFaceEndpointEmbeddings(
         model="sentence-transformers/all-MiniLM-L6-v2",
-        huggingfacehub_api_token=os.getenv("HF_TOKEN")
-)
-    vector_store = FAISS.from_texts(text_chunks, embedding=embeddings)
+        huggingfacehub_api_token=os.getenv("HF_TOKEN"),
+    )
+
+
+EMBEDDING_PROVIDERS = {"google": _google_embeddings, "huggingface": _huggingface_embeddings}
+
+
+def get_vector_store(text_chunks, session_id):
     faiss_path = f"faiss_indexes/{session_id}"
-    vector_store.save_local(faiss_path)
+    last_error = None
+    for name, make_embeddings in EMBEDDING_PROVIDERS.items():
+        try:
+            vector_store = FAISS.from_texts(text_chunks, embedding=make_embeddings())
+        except Exception as e:
+            last_error = e
+            continue
+        vector_store.save_local(faiss_path)
+        with open(os.path.join(faiss_path, "provider.txt"), "w") as f:
+            f.write(name)
+        return
+    raise last_error
+
+
+def load_vector_store(session_id):
+    faiss_path = f"faiss_indexes/{session_id}"
+    try:
+        with open(os.path.join(faiss_path, "provider.txt")) as f:
+            name = f.read().strip()
+    except OSError:
+        name = "huggingface"  # indexes saved before provider.txt existed
+    return FAISS.load_local(
+        faiss_path,
+        EMBEDDING_PROVIDERS[name](),
+        allow_dangerous_deserialization=True,
+    )
 
 def get_chat_history_string():
     # Get last 5 messages from DB to maintain context
@@ -54,11 +95,37 @@ def get_chat_history_string():
     return history_text
 
 # ==========================================================
-# 4. ASK GROQ (Strictly Text Only)
+# 4. CHAT MODEL: Groq first, Gemini if Groq fails (and back again
+#    automatically once Groq works, since Groq is always tried first)
 # ==========================================================
+GROQ_MODEL = "openai/gpt-oss-120b"
+GEMINI_MODEL = "gemini-3.5-flash"
+
+
+def _chat(prompt):
+    errors = []
+    try:
+        completion = Groq(api_key=os.getenv("GROQ_API_KEY")).chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+        )
+        return completion.choices[0].message.content
+    except Exception as e:
+        errors.append(f"Groq: {e}")
+    try:
+        from google import genai
+        # Keep the client in a variable: an inline genai.Client(...) gets closed
+        # before the request is sent ("client has been closed").
+        client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+        response = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
+        return response.text
+    except Exception as e:
+        errors.append(f"Gemini: {e}")
+    return "Error: " + " | ".join(errors)
+
+
 def ask_groq(context_text, user_question):
-    client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-    
     conversation_history = get_chat_history_string()
 
     # --- PROMPT: Explicitly bans Mermaid/Graphs ---
@@ -80,36 +147,17 @@ def ask_groq(context_text, user_question):
     --- USER QUESTION ---
     {user_question}
     """
-    
-    try:
-        completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3
-        )
-        return completion.choices[0].message.content
-    except Exception as e:
-        return f"Error: {str(e)}"
+
+    return _chat(prompt)
 
 # ==========================================================
 # 5. MAIN LOGIC (Extracts Sources)
 # ==========================================================
 def process_user_question(user_question, session_id):
-    
-    from langchain_huggingface import HuggingFaceEndpointEmbeddings
-    embeddings = HuggingFaceEndpointEmbeddings(
-        model="sentence-transformers/all-MiniLM-L6-v2",
-        huggingfacehub_api_token=os.getenv("HF_TOKEN")
-)
-    try:
-        faiss_path = f"faiss_indexes/{session_id}"
 
-        new_db = FAISS.load_local(
-            faiss_path,
-            embeddings,
-            allow_dangerous_deserialization=True
-    )
-    except:
+    try:
+        new_db = load_vector_store(session_id)
+    except Exception:
         return "⚠️ Please upload a PDF first."
     
     docs = new_db.similarity_search(user_question)
@@ -137,29 +185,15 @@ def process_user_question(user_question, session_id):
 # 6. GENERATE SUMMARY (Strictly Text Only)
 # ==========================================================
 def generate_summary(session_id):
-    from langchain_huggingface import HuggingFaceEndpointEmbeddings
-    
-    embeddings = HuggingFaceEndpointEmbeddings(
-        model="sentence-transformers/all-MiniLM-L6-v2",
-        huggingfacehub_api_token=os.getenv("HF_TOKEN")
-)
     try:
-        faiss_path = f"faiss_indexes/{session_id}"
-
-        new_db = FAISS.load_local(
-            faiss_path,
-            embeddings,
-            allow_dangerous_deserialization=True
-        )
-    except:
+        new_db = load_vector_store(session_id)
+    except Exception:
         return "⚠️ Please upload a PDF first."
     
     # Fetch broad context
     docs = new_db.similarity_search("overview introduction conclusion summary main points", k=8)
     context_text = "\n\n".join([doc.page_content for doc in docs])
-    
-    client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-    
+
     # --- PROMPT: Explicitly bans Mermaid/Graphs ---
     prompt = f"""
     You are an expert analyst. 
@@ -172,13 +206,5 @@ def generate_summary(session_id):
     Context:
     {context_text}
     """
-    
-    try:
-        completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3
-        )
-        return completion.choices[0].message.content
-    except Exception as e:
-        return f"Error: {str(e)}"
+
+    return _chat(prompt)
