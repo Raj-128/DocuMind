@@ -1,3 +1,4 @@
+{% load markdown_bold %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -627,9 +628,9 @@
                     {% if forloop.last and should_animate %}
                         <div id="typewriter-target"></div>
                         <span class="cursor"></span>
-                        <div id="source-html" style="display:none">{{ msg.content|linebreaks }}</div>
+                        <div id="source-html" style="display:none">{{ msg.content|bold }}</div>
                     {% else %}
-                        {{ msg.content|linebreaks }}
+                        {{ msg.content|bold }}
                     {% endif %}
                 </div>
             </div>
