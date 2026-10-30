@@ -63,6 +63,12 @@ Instead of manually searching through lengthy PDFs, users can instantly retrieve
 * Ask questions using voice commands
 * Enhanced accessibility and user interaction
 
+### 📱 Mobile Responsive
+
+* Works on phones, tablets and desktops
+* Slide-in sidebar menu on small screens
+* Compact icon toolbar and full-width chat
+
 ### ⚡ Vector Search with FAISS
 
 * Fast semantic retrieval
