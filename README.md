@@ -119,7 +119,7 @@ Response Generation + Source Citations
 ### AI & RAG
 
 * LangChain
-* Groq (Llama 3.3 70B)
+* Groq (GPT-OSS 120B), Gemini 3.8 Flash fallback
 * HuggingFace Embeddings
 * FAISS Vector Database
 

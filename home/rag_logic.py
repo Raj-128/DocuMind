@@ -99,7 +99,8 @@ def get_chat_history_string():
 #    automatically once Groq works, since Groq is always tried first)
 # ==========================================================
 GROQ_MODEL = "openai/gpt-oss-120b"
-GEMINI_MODEL = "gemini-3.5-flash"
+# Newest first; the next one is tried if a model is unavailable to the key or over its limit.
+GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash"]
 
 
 def _chat(prompt):
@@ -118,10 +119,14 @@ def _chat(prompt):
         # Keep the client in a variable: an inline genai.Client(...) gets closed
         # before the request is sent ("client has been closed").
         client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-        response = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
-        return response.text
     except Exception as e:
         errors.append(f"Gemini: {e}")
+        client = None
+    for model in GEMINI_MODELS if client else []:
+        try:
+            return client.models.generate_content(model=model, contents=prompt).text
+        except Exception as e:
+            errors.append(f"Gemini {model}: {e}")
     return "Error: " + " | ".join(errors)
 
 
