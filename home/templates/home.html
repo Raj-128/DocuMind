@@ -489,6 +489,64 @@
             pointer-events: none;
         }
         #toast.show { transform: translateY(0); opacity: 1; }
+
+        /* ── MOBILE ── */
+        .menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text);
+            font-size: 22px;
+            line-height: 1;
+            padding: 4px 6px;
+        }
+        .sidebar-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 49;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        .bubble { overflow-wrap: anywhere; min-width: 0; }
+
+        @media (max-width: 860px) {
+            .menu-btn { display: block; }
+            /* Sidebar slides in over the chat instead of taking a fixed column */
+            .sidebar {
+                position: fixed;
+                top: 0; bottom: 0; left: 0;
+                width: 280px;
+                max-width: 85vw;
+                z-index: 50;
+                transform: translateX(-100%);
+                transition: transform 0.25s ease;
+                overflow-y: auto;
+            }
+            body.nav-open .sidebar { transform: translateX(0); }
+            body.nav-open .sidebar-backdrop { opacity: 1; pointer-events: auto; }
+
+            .topbar { padding: 0 10px; gap: 8px; }
+            .topbar-left { min-width: 0; gap: 8px; }
+            .topbar-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .topbar-actions { gap: 6px; flex-shrink: 0; }
+            .tb-btn { padding: 8px 10px; }
+            .tb-label { display: none; }
+
+            .chat-box { padding: 18px 12px; gap: 16px; }
+            .message-row { max-width: 100%; gap: 8px; }
+            .avatar { width: 26px; height: 26px; font-size: 11px; }
+            .bubble { padding: 12px 14px; font-size: 14px; }
+
+            .input-bar { padding: 10px 10px max(12px, env(safe-area-inset-bottom)); }
+            .input-row { gap: 8px; }
+            .text-input { font-size: 16px; min-width: 0; } /* 16px stops iOS zoom on focus */
+            .send-btn { padding: 0 14px; }
+            .input-hint { display: none; }
+
+            #toast { left: 16px; right: 16px; bottom: 16px; }
+        }
     </style>
 </head>
 <body>
@@ -503,6 +561,7 @@
 <div id="toast" role="alert" aria-live="polite"></div>
 
 <!-- ── SIDEBAR ── -->
+<div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 <aside class="sidebar">
     <div class="brand">
         <div class="brand-name">Docu<span>Mind</span></div>
@@ -570,6 +629,7 @@
     <!-- Top bar -->
     <div class="topbar">
         <div class="topbar-left">
+            <button type="button" class="menu-btn" id="menu-btn" aria-label="Open menu">☰</button>
             <div class="status-dot"></div>
             <span class="topbar-title">
                 {% if current_doc %}{{ current_doc.name }}{% else %}No document loaded{% endif %}
@@ -580,18 +640,18 @@
             <form method="post" enctype="multipart/form-data" id="upload-form">
                 {% csrf_token %}
                 <input type="file" name="pdf_files" id="pdf-input" accept=".pdf">
-                <button type="button" class="tb-btn" id="upload-btn" onclick="document.getElementById('pdf-input').click()">
+                <button type="button" class="tb-btn" id="upload-btn" title="Upload PDF" onclick="document.getElementById('pdf-input').click()">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    Upload PDF
+                    <span class="tb-label">Upload PDF</span>
                 </button>
             </form>
 
             <!-- Summarize -->
             <form method="post" id="summarize-form">
                 {% csrf_token %}
-                <button type="submit" name="action_summarize" value="true" class="tb-btn accent" id="summarize-btn">
+                <button type="submit" name="action_summarize" value="true" class="tb-btn accent" id="summarize-btn" title="Summarize document">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                    Summarize
+                    <span class="tb-label">Summarize</span>
                 </button>
             </form>
 
@@ -600,7 +660,7 @@
                 {% csrf_token %}
                 <button type="submit" name="clear_chat" value="true" class="tb-btn danger" id="clear-btn" title="Clear conversation">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-                    Clear
+                    <span class="tb-label">Clear</span>
                 </button>
             </form>
         </div>
@@ -651,7 +711,7 @@
                     name="user_question"
                     id="user-input"
                     class="text-input"
-                    placeholder="Ask anything about your document…"
+                    placeholder="Ask about your document…"
                     required
                     autocomplete="off"
                 >
@@ -693,7 +753,12 @@
     window.setInput = function (text) {
         const inp = $("user-input");
         if (inp) { inp.value = text; inp.focus(); }
+        document.body.classList.remove("nav-open");
     };
+
+    // ── MOBILE MENU ───────────────────────────────────────────
+    $("menu-btn")?.addEventListener("click", () => document.body.classList.toggle("nav-open"));
+    $("sidebar-backdrop")?.addEventListener("click", () => document.body.classList.remove("nav-open"));
 
     // ── ENTER KEY SUBMIT ──────────────────────────────────────
     const userInput = $("user-input");
@@ -779,13 +844,13 @@
         rec.addEventListener("end", function () {
             active = false;
             micBtn.classList.remove("listening");
-            userInput.placeholder = "Ask anything about your document…";
+            userInput.placeholder = "Ask about your document…";
         });
 
         rec.addEventListener("error", function (e) {
             active = false;
             micBtn.classList.remove("listening");
-            userInput.placeholder = "Ask anything about your document…";
+            userInput.placeholder = "Ask about your document…";
             if (e.error === "not-allowed") showToast("Microphone permission denied");
         });
     } else if (micBtn) {
