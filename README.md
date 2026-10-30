@@ -101,7 +101,7 @@ Relevant Context Retrieval
 
 ↓
 
-Groq LLM
+Groq LLM (Gemini fallback)
 
 ↓
 
@@ -119,8 +119,8 @@ Response Generation + Source Citations
 ### AI & RAG
 
 * LangChain
-* Groq (GPT-OSS 120B), Gemini 3.8 Flash fallback
-* HuggingFace Embeddings
+* Groq (GPT-OSS 120B), Gemini 3.8 Flash fallback (then 3.5 Flash)
+* Google `gemini-embedding-001` embeddings, HuggingFace fallback
 * FAISS Vector Database
 
 ### Document Processing
@@ -257,7 +257,9 @@ Create a `.env` file:
 ```env
 SECRET_KEY=your-secret-key
 
-GROQ_API_KEY=your-groq-api-key
+GROQ_API_KEY=your-groq-api-key        # answers (tried first)
+GOOGLE_API_KEY=your-gemini-api-key    # embeddings + answer fallback
+HF_TOKEN=your-huggingface-token       # optional: embedding fallback
 ```
 
 ### Run Migrations
@@ -292,11 +294,8 @@ The document is divided into manageable chunks using LangChain's RecursiveCharac
 
 ### Step 4 — Embedding Generation
 
-Text chunks are converted into vector embeddings using:
-
-```text
-sentence-transformers/all-MiniLM-L6-v2
-```
+Text chunks are converted into vector embeddings using Google's `gemini-embedding-001`.
+If Google is unavailable, it falls back to HuggingFace `sentence-transformers/all-MiniLM-L6-v2`.
 
 ### Step 5 — Vector Storage
 
@@ -312,7 +311,8 @@ Relevant chunks are retrieved using semantic similarity search.
 
 ### Step 8 — AI Response
 
-Retrieved context and conversation history are sent to Groq LLM for response generation.
+Retrieved context and conversation history are sent to Groq (GPT-OSS 120B) for response generation.
+If Groq fails, Gemini answers instead (`gemini-3.8-flash`, then `gemini-3.5-flash`), and Groq is tried first again on the next question.
 
 ### Step 9 — Source Citation
 
